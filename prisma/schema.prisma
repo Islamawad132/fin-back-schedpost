@@ -1,0 +1,195 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String            @id @default(uuid())
+  email                 String            @unique
+  password              String
+  firstName             String
+  lastName              String
+  isEmailVerified       Boolean           @default(false)
+  emailVerificationCode String?
+  passwordResetCode     String?
+  passwordResetExpires  DateTime?
+  refreshToken          String?
+  projects              Project[]
+  teamMemberships       TeamMember[]
+  projectActivities     ProjectActivity[]
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+}
+
+model Project {
+  id          String            @id @default(uuid())
+  name        String
+  description String?
+  status      String            @default("active")
+  userId      String
+  user        User              @relation(fields: [userId], references: [id])
+  teams       Team[]
+  platforms   Platform[]
+  aiKeys      AIKey[]
+  activities  ProjectActivity[]
+  keywords    String[]          @default([])
+  titles      String[]          @default([])
+  aiSettings  Json?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([userId])
+}
+
+enum TeamRole {
+  ADMIN
+  EDITOR
+  MEMBER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model Team {
+  id          String         @id @default(uuid())
+  name        String
+  projectId   String
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  members     TeamMember[]
+  invitations Invitation[]
+  activities  TeamActivity[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([projectId])
+}
+
+model TeamMember {
+  id         String         @id @default(uuid())
+  teamId     String
+  userId     String
+  role       TeamRole       @default(MEMBER)
+  team       Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activities TeamActivity[]
+  lastActive DateTime       @default(now())
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id        String           @id @default(uuid())
+  teamId    String
+  email     String
+  code      String           @unique
+  role      TeamRole         @default(MEMBER)
+  status    InvitationStatus @default(PENDING)
+  team      Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([email])
+  @@index([teamId])
+  @@index([code])
+}
+
+model TeamActivity {
+  id          String     @id @default(uuid())
+  teamId      String
+  memberId    String
+  action      String
+  description String
+  metadata    Json?
+  team        Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  member      TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+
+  @@index([teamId])
+  @@index([memberId])
+}
+
+enum PlatformType {
+  WORDPRESS
+  FACEBOOK
+  TWITTER
+  INSTAGRAM
+  LINKEDIN
+  TIKTOK
+}
+
+model Platform {
+  id          String       @id @default(uuid())
+  type        PlatformType
+  name        String // مثال: "مدونة الشركة"، "صفحة فيسبوك الرئيسية"
+  credentials Json // تخزين بيانات الاعتماد بشكل آمن
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  posts       Post[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([projectId])
+}
+
+model AIKey {
+  id        String   @id @default(uuid())
+  name      String // مثال: "Google AI Studio"
+  apiKey    String
+  type      String // نوع المفتاح (e.g., "GOOGLE_AI", "OPENAI")
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+model Post {
+  id          String    @id @default(uuid())
+  title       String
+  content     String    @db.Text
+  keywords    String[] // الكلمات المفتاحية المستخدمة
+  platformId  String
+  platform    Platform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  status      String    @default("draft") // draft, published, scheduled
+  publishDate DateTime?
+  metadata    Json? // بيانات إضافية خاصة بكل منصة
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([platformId])
+}
+
+model ProjectActivity {
+  id          String   @id @default(uuid())
+  projectId   String
+  userId      String
+  action      String
+  description String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([projectId])
+  @@index([userId])
+}
