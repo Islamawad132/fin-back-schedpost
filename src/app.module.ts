@@ -8,6 +8,9 @@ import { PostsModule } from './posts/posts.module';
 import { AIModule } from './ai/ai.module';
 import { PrismaService } from './prisma/prisma.service';
 import { MailService } from './mail/mail.service';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
   imports: [
@@ -19,7 +22,12 @@ import { MailService } from './mail/mail.service';
     TeamsModule,
     PlatformsModule,
     PostsModule,
-    AIModule
+    AIModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
+    }),
+    UploadsModule,
   ],
   controllers: [],
   providers: [PrismaService, MailService],
